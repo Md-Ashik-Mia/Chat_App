@@ -1,0 +1,196 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Group Chat</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            margin: 0;
+            padding: 0;
+            background: #f0f0f5;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            height: 100vh;
+        }
+        #chat {
+            width: 400px;
+            background: white;
+            border-radius: 10px;
+            box-shadow: 0 4px 10px rgba(0, 0, 0, 0.1);
+            overflow: hidden;
+        }
+        #username-section {
+            padding: 20px;
+            text-align: center;
+            background: #4CAF50;
+            color: white;
+        }
+        #username-section input {
+            padding: 10px;
+            width: 70%;
+            border: none;
+            border-radius: 5px;
+            outline: none;
+        }
+        #username-section button {
+            padding: 10px;
+            background: #ffffff;
+            color: #4CAF50;
+            border: none;
+            border-radius: 5px;
+            cursor: pointer;
+        }
+        #username-section button:hover {
+            background: #e8e8e8;
+        }
+        #messages {
+            list-style-type: none;
+            padding: 10px;
+            margin: 0;
+            max-height: 300px;
+            overflow-y: auto;
+            background: #f9f9f9;
+        }
+        #messages li {
+            margin: 5px 0;
+            padding: 10px 15px;
+            border-radius: 10px;
+            display: flex;
+            flex-direction: column;
+            max-width: 70%;
+        }
+        #messages .sender {
+            margin-left: auto;
+            background: #e7f7e7;
+            text-align: right;
+        }
+        #messages .receiver {
+            margin-right: auto;
+            background: #f0f7ff;
+            text-align: left;
+        }
+        #messages .timestamp {
+            font-size: 0.8em;
+            color: #666;
+            margin-top: 5px;
+        }
+        #form {
+            display: flex;
+            padding: 10px;
+            background: #4CAF50;
+        }
+        #form input {
+            flex: 1;
+            padding: 10px;
+            border: none;
+            border-radius: 5px;
+            outline: none;
+        }
+        #form button {
+            margin-left: 10px;
+            padding: 10px;
+            background: #ffffff;
+            color: #4CAF50;
+            border: none;
+            border-radius: 5px;
+            cursor: pointer;
+        }
+        #form button:hover {
+            background: #e8e8e8;
+        }
+    </style>
+</head>
+<body>
+    <div id="chat">
+        <div id="group-name" style="padding: 10px; text-align: center; background: #4CAF50; color: white; font-size: 1.2em;">
+            Friends_Forever
+        </div>
+        <div id="username-section">
+            <input id="username" placeholder="Enter your username" />
+            <button id="set-username">Join Chat</button>
+        </div>
+        <ul id="messages"></ul>
+        <form id="form" style="display: none;">
+            <input id="message" autocomplete="off" placeholder="Type a message..." />
+            <button>Send</button>
+        </form>
+    </div>
+    <script src="/socket.io/socket.io.js"></script>
+    <script>
+        const socket = io();
+        const messages = document.getElementById('messages');
+        const form = document.getElementById('form');
+        const input = document.getElementById('message');
+        const usernameInput = document.getElementById('username');
+        const setUsernameBtn = document.getElementById('set-username');
+        const usernameSection = document.getElementById('username-section');
+
+        let currentUsername = '';
+
+        // Set username
+        setUsernameBtn.addEventListener('click', () => {
+            const username = usernameInput.value.trim();
+            if (username) {
+                currentUsername = username;
+                socket.emit('set username', username);
+                usernameSection.style.display = 'none';
+                form.style.display = 'flex';
+            }
+        });
+
+        // Handle form submission
+        form.addEventListener('submit', (e) => {
+            e.preventDefault();
+            if (input.value) {
+                const message = { text: input.value, username: currentUsername };
+                socket.emit('chat message', message);
+                input.value = '';
+            }
+        });
+
+        // Listen for incoming messages
+        socket.on('chat message', (data) => {
+            const item = document.createElement('li');
+            const messageText = document.createElement('span');
+            const timestamp = document.createElement('span');
+
+            // Assign classes and content
+            messageText.textContent = `${data.username}: ${data.text}`;
+            timestamp.textContent = new Date(data.timestamp).toLocaleTimeString()
+            
+            if (data.username === currentUsername) {
+                item.className = 'sender';
+            } else {
+                item.className = 'receiver';
+            }
+
+            timestamp.className = 'timestamp';
+            item.appendChild(messageText);
+            item.appendChild(timestamp);
+
+            // Append to the message list
+            messages.appendChild(item);
+            messages.scrollTop = messages.scrollHeight;
+        });
+
+        // Notify when a user joins
+        socket.on('user joined', (msg) => {
+            const item = document.createElement('li');
+            item.textContent = msg;
+            item.className = 'notification';
+            messages.appendChild(item);
+        });
+
+        // Notify when a user leaves
+        socket.on('user left', (msg) => {
+            const item = document.createElement('li');
+            item.textContent = msg;
+            item.className = 'notification';
+            messages.appendChild(item);
+        });
+    </script>
+</body>
+</html>
